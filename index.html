@@ -81,7 +81,7 @@
 
         <!-- 1. PIN LOCK SCREEN MODULE -->
         <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-900 text-white flex flex-col justify-between p-6 max-w-md mx-auto">
-            <div class="text-center mt-8">
+            <div class="text-center mt-12">
                 <div class="w-24 h-24 mx-auto mb-4 bg-gradient-to-tr from-sky-500 to-indigo-600 rounded-full p-1 shadow-lg shadow-sky-500/30 flex items-center justify-center">
                     <div class="w-full h-full bg-slate-900 rounded-full flex flex-col items-center justify-center border-2 border-white/20">
                         <i class="fa-solid font-bold fa-city text-3xl text-sky-400 mb-1"></i>
@@ -89,10 +89,7 @@
                     </div>
                 </div>
                 <h1 class="text-2xl font-extrabold text-white tracking-wide">تطبيق الحساب الخاص</h1>
-                <p class="text-xs text-slate-400 mt-1">الرجاء إدخال الرقم السري المكون من 4 أرقام</p>
-                <div class="inline-block mt-2 bg-slate-800 border border-slate-700 rounded-full px-3 py-1 text-[11px] text-sky-300">
-                    <i class="fa-solid fa-key text-xs ml-1"></i> العادي: <span class="font-bold">1234</span> | الأدمن: <span class="font-bold">9999</span>
-                </div>
+                <p class="text-xs text-slate-400 mt-2">الرجاء إدخال الرقم السري للمتابعة</p>
             </div>
 
             <div class="flex justify-center space-x-4 space-x-reverse my-6">
@@ -451,8 +448,8 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         let currentPin = "";
-        const USER_PIN = "1234";    // الرقم السري العادي (للمشاهدة فقط)
-        const ADMIN_PIN = "9999";   // الرقم السري للأدمن (للتحكم الكامل)
+        const USER_PIN = "1234";    
+        const ADMIN_PIN = "9999";   
         let isAdmin = false;
         let activeDocFilter = "all";
 
@@ -502,7 +499,7 @@
                 updateAdminState();
                 initApp();
             } else {
-                document.getElementById('pinError').innerText = "الرقم السري غير صحيح! حاول مرة أخرى (1234 أو 9999)";
+                document.getElementById('pinError').innerText = "الرقم السري غير صحيح! حاول مرة أخرى";
                 clearPin();
             }
         }
@@ -520,7 +517,7 @@
                 alert('تم الخروج من وضع الأدمن والتحويل لوضع الاطلاع فقط.');
                 updateAdminState();
             } else {
-                const pass = prompt('الرجاء إدخال الرقم السري للأدمن (9999):');
+                const pass = prompt('الرجاء إدخال الرقم السري للأدمن:');
                 if (pass === ADMIN_PIN) {
                     isAdmin = true;
                     alert('مرحباً بك! تم تفعيل صلاحيات الأدمن (الإدخال والحذف).');
@@ -857,6 +854,7 @@
         }
 
         function openDocModal(title, type, num, date) {
+            defaultTitle = title;
             document.getElementById('modalDocTitle').innerText = title;
             document.getElementById('modalDocType').innerText = `نوع المستند: ${type}`;
             document.getElementById('modalDocMeta').innerText = `رقم المستند/القرار: ${num} | تاريخ الإصدار: ${date}`;
