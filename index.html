@@ -13,42 +13,42 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CAOA">
     
-    <!-- Dynamic Manifest Injection -->
-    <script>
-        const manifestData = {
-            "name": "CAOA Account Manager",
-            "short_name": "CAOA",
-            "start_url": "./index.html",
-            "display": "standalone",
-            "background_color": "#ffffff",
-            "theme_color": "#1e3a8a",
-            "dir": "rtl",
-            "lang": "ar",
-            "orientation": "any",
-            "icons": [
-                {
-                    "src": "https://cdn-icons-png.flaticon.com/512/2830/2830284.png",
-                    "sizes": "512x512",
-                    "type": "image/png",
-                    "purpose": "any maskable"
-                }
-            ]
-        };
-        const stringManifest = JSON.stringify(manifestData);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestURL;
-        document.head.appendChild(link);
-    </script>
-
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcCnsBHn_Bf2Uq9fX1-tvssML1HEywuzQ",
+            authDomain: "caoa-37035.firebaseapp.com",
+            projectId: "caoa-37035",
+            storageBucket: "caoa-37035.firebasestorage.app",
+            messagingSenderId: "1073302909613",
+            appId: "1:1073302909613:web:a102b8847f5c1352830c24"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // إتاحة الدوال للاستخدام العام في الصفحة
+        window.db = db;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.deleteDoc = deleteDoc;
+        window.doc = doc;
+        window.onSnapshot = onSnapshot;
+
+        // بدء تشغيل التطبيق بعد تحميل فايربيس
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
 
     <script>
         tailwind.config = {
@@ -73,7 +73,7 @@
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-primary-500 selection:text-white" onload="initApp()">
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-primary-500 selection:text-white">
 
     <!-- APP CONTAINER -->
     <div id="app" class="max-w-md w-full mx-auto bg-white min-h-screen shadow-2xl flex flex-col relative pb-20">
@@ -396,13 +396,17 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        const MASTER_PIN = "2106";    // الرقم السري الموحد للأدمن
+        const MASTER_PIN = "2106";
         let isAdmin = false;
         let activeDocFilter = "all";
 
-        let revenues = JSON.parse(localStorage.getItem('device_revenues')) || [];
-        let services = JSON.parse(localStorage.getItem('device_services')) || [];
-        let documents = JSON.parse(localStorage.getItem('device_documents')) || [];
+        let revenues = [];
+        let services = [];
+        let documents = [];
+
+        window.addEventListener('firebase-ready', () => {
+            initApp();
+        });
 
         function toggleAdminView() {
             if (isAdmin) {
@@ -475,10 +479,30 @@
             isAdmin = false;
             updateAdminState();
 
-            renderDashboard();
-            renderRevenues();
-            renderServices();
-            renderDocuments();
+            loadDataFromFirebase();
+        }
+
+        // جلب البيانات من السحابة في الوقت الفعلي
+        function loadDataFromFirebase() {
+            // الإيرادات
+            onSnapshot(collection(window.db, "revenues"), (snapshot) => {
+                revenues = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
+                renderDashboard();
+                renderRevenues();
+            });
+
+            // الخدمات
+            onSnapshot(collection(window.db, "services"), (snapshot) => {
+                services = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
+                renderDashboard();
+                renderServices();
+            });
+
+            // المستندات
+            onSnapshot(collection(window.db, "documents"), (snapshot) => {
+                documents = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
+                renderDocuments();
+            });
         }
 
         function renderDashboard() {
@@ -491,7 +515,7 @@
             if (revenues.length === 0) {
                 recentContainer.innerHTML = `<p class="text-slate-400 text-center py-2">لا توجد إيرادات مسجلة حديثاً</p>`;
             } else {
-                recentContainer.innerHTML = revenues.slice(-3).reverse().map(r => `
+                recentContainer.innerHTML = [...revenues].sort((a,b) => b.id - a.id).slice(0, 3).map(r => `
                     <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                         <div>
                             <span class="font-bold text-slate-800 block">${r.title || r.category}</span>
@@ -518,7 +542,7 @@
             }
         }
 
-        function handleAddRevenue(e) {
+        async function handleAddRevenue(e) {
             e.preventDefault();
             if (!isAdmin) {
                 alert('عذراً! هذه الصلاحية للمدير (الأدمن) فقط.');
@@ -531,14 +555,16 @@
             const notes = document.getElementById('revNotes').value;
 
             const newRev = { id: Date.now(), amount, category, date, title: title || category, notes };
-            revenues.push(newRev);
-            localStorage.setItem('device_revenues', JSON.stringify(revenues));
-
-            document.getElementById('revenueForm').reset();
-            document.getElementById('revDate').value = new Date().toISOString().split('T')[0];
-            renderDashboard();
-            renderRevenues();
-            switchTab('dashboard');
+            
+            try {
+                await addDoc(collection(window.db, "revenues"), newRev);
+                document.getElementById('revenueForm').reset();
+                document.getElementById('revDate').value = new Date().toISOString().split('T')[0];
+                switchTab('dashboard');
+                alert('تم حفظ الإيراد بنجاح وتحديثه لدى الجميع');
+            } catch (err) {
+                alert('حدث خطأ أثناء الحفظ: ' + err.message);
+            }
         }
 
         function renderRevenues() {
@@ -552,7 +578,7 @@
                 return;
             }
 
-            container.innerHTML = [...revenues].reverse().map(r => `
+            container.innerHTML = [...revenues].sort((a,b) => b.id - a.id).map(r => `
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 relative">
                     <div class="flex justify-between items-start">
                         <div>
@@ -564,22 +590,19 @@
                     ${r.notes ? `<p class="text-[10px] text-slate-500 mt-2 bg-white p-1.5 rounded border border-slate-100">${r.notes}</p>` : ''}
                     <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 pt-1 border-t border-slate-200/60">
                         <span>التاريخ: ${r.date}</span>
-                        ${isAdmin ? `<button onclick="deleteRevenue(${r.id})" class="text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i> حذف</button>` : ''}
+                        ${isAdmin ? `<button onclick="deleteRevenue('${r.idDoc}')" class="text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i> حذف</button>` : ''}
                     </div>
                 </div>
             `).join('');
         }
 
-        function deleteRevenue(id) {
+        async function deleteRevenue(idDoc) {
             if (!isAdmin) {
                 alert('عذراً! الحذف متاح للأدمن فقط.');
                 return;
             }
             if (confirm('هل أنت تأكد من حذف هذا السجل الإيرادي؟')) {
-                revenues = revenues.filter(r => r.id !== id);
-                localStorage.setItem('device_revenues', JSON.stringify(revenues));
-                renderDashboard();
-                renderRevenues();
+                await deleteDoc(doc(window.db, "revenues", idDoc));
             }
         }
 
@@ -592,7 +615,7 @@
             document.getElementById('srvFinalCalculatedPrice').innerText = `${final.toFixed(2)} ج.م`;
         }
 
-        function handleAddService(e) {
+        async function handleAddService(e) {
             e.preventDefault();
             if (!isAdmin) {
                 alert('عذراً! هذه الصلاحية للمدير (الأدمن) فقط.');
@@ -608,13 +631,15 @@
             if (model === 'margin25') finalPrice = baseCost * 1.25;
 
             const newService = { id: Date.now(), name, baseCost, model, finalPrice: finalPrice.toFixed(2), desc };
-            services.push(newService);
-            localStorage.setItem('device_services', JSON.stringify(services));
-
-            document.getElementById('serviceForm').reset();
-            document.getElementById('srvFinalCalculatedPrice').innerText = `0.00 ج.م`;
-            renderDashboard();
-            renderServices();
+            
+            try {
+                await addDoc(collection(window.db, "services"), newService);
+                document.getElementById('serviceForm').reset();
+                document.getElementById('srvFinalCalculatedPrice').innerText = `0.00 ج.م`;
+                alert('تم إدراج الخدمة بنجاح وتحديثها لدى الجميع');
+            } catch (err) {
+                alert('حدث خطأ: ' + err.message);
+            }
         }
 
         function renderServices() {
@@ -636,23 +661,20 @@
                     </div>
                     ${isAdmin ? `
                         <div class="text-left mt-2 border-t pt-1">
-                            <button onclick="deleteService(${s.id})" class="text-[10px] text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i> حذف الخدمة</button>
+                            <button onclick="deleteService('${s.idDoc}')" class="text-[10px] text-rose-500 hover:underline"><i class="fa-solid fa-trash"></i> حذف الخدمة</button>
                         </div>
                     ` : ''}
                 </div>
             `).join('');
         }
 
-        function deleteService(id) {
+        async function deleteService(idDoc) {
             if (!isAdmin) {
                 alert('عذراً! الحذف متاح للأدمن فقط.');
                 return;
             }
             if (confirm('هل تريد حذف هذه الخدمة من الدليل؟')) {
-                services = services.filter(s => s.id !== id);
-                localStorage.setItem('device_services', JSON.stringify(services));
-                renderDashboard();
-                renderServices();
+                await deleteDoc(doc(window.db, "services", idDoc));
             }
         }
 
@@ -663,26 +685,28 @@
             }
         }
 
-        function handleUploadDoc(e) {
+        async function handleUploadDoc(e) {
             e.preventDefault();
             if (!isAdmin) {
                 alert('عذراً! رفع اللوائح والقرارات متاح للمدير (الأدمن) فقط.');
                 return;
             }
-            const type = document.getElementById('docType').value;
+            const type = document.getElementById('docType`').value || document.getElementById('docType').value;
             const title = document.getElementById('docTitle').value;
             const num = document.getElementById('docNum').value;
             const date = document.getElementById('docDate').value;
             const fileName = document.getElementById('docFileSimulatedUrl').value;
 
             const newDoc = { id: Date.now(), type, title, num: num || 'غير محدد', date, fileUrl: fileName || 'document.pdf' };
-            documents.push(newDoc);
-            localStorage.setItem('device_documents', JSON.stringify(documents));
-
-            document.getElementById('docUploadForm').reset();
-            document.getElementById('docDate').value = new Date().toISOString().split('T')[0];
-            renderDocuments();
-            alert('تم رفع المستند بنجاح إلى الأرشيف الرسمى');
+            
+            try {
+                await addDoc(collection(window.db, "documents"), newDoc);
+                document.getElementById('docUploadForm').reset();
+                document.getElementById('docDate').value = new Date().toISOString().split('T')[0];
+                alert('تم رفع المستند بنجاح وتحديثه للأرشيف لدى الجميع');
+            } catch (err) {
+                alert('حدث خطأ: ' + err.message);
+            }
         }
 
         function filterDocs(category) {
@@ -731,21 +755,19 @@
                         <button onclick="openDocModal('${d.title}', '${d.type}', '${d.num}', '${d.date}')" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg font-bold text-[11px] flex items-center">
                             <i class="fa-solid fa-eye ml-1"></i> عرض
                         </button>
-                        ${isAdmin ? `<button onclick="deleteDoc(${d.id})" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        ${isAdmin ? `<button onclick="deleteDocItem('${d.idDoc}')" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </div>
                 </div>
             `).join('');
         }
 
-        function deleteDoc(id) {
+        async function deleteDocItem(idDoc) {
             if (!isAdmin) {
                 alert('عذراً! الحذف متاح للأدمن فقط.');
                 return;
             }
             if (confirm('هل أنت تأكد من حذف هذا المستند من الأرشيف؟')) {
-                documents = documents.filter(d => d.id !== id);
-                localStorage.setItem('device_documents', JSON.stringify(documents));
-                renderDocuments();
+                await deleteDoc(doc(window.db, "documents", idDoc));
             }
         }
 
