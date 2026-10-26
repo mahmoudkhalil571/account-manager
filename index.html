@@ -91,7 +91,7 @@
                 <h1 class="text-2xl font-extrabold text-white tracking-wide">تطبيق الحساب الخاص</h1>
                 <p class="text-xs text-slate-400 mt-1">الرجاء إدخال الرقم السري المكون من 4 أرقام</p>
                 <div class="inline-block mt-2 bg-slate-800 border border-slate-700 rounded-full px-3 py-1 text-[11px] text-sky-300">
-                    <i class="fa-solid fa-key text-xs ml-1"></i> الرمز الافتراضي: <span class="font-bold">1234</span>
+                    <i class="fa-solid fa-key text-xs ml-1"></i> العادي: <span class="font-bold">1234</span> | الأدمن: <span class="font-bold">9999</span>
                 </div>
             </div>
 
@@ -228,7 +228,6 @@
 
             <!-- TAB 2: REVENUE MODULE -->
             <section id="tab-revenue" class="space-y-4 hidden">
-                <!-- FORM HIDDEN FOR REGULAR USERS -->
                 <div id="revenueInputContainer" class="hidden bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                     <h3 class="font-bold text-base text-slate-800 mb-1 flex items-center">
                         <i class="fa-solid fa-plus-circle text-emerald-600 ml-2"></i> إدخال إيراد جديد (خاص بالأدمن)
@@ -285,7 +284,6 @@
 
             <!-- TAB 3: SERVICES MODULE -->
             <section id="tab-services" class="space-y-4 hidden">
-                <!-- FORM HIDDEN FOR REGULAR USERS -->
                 <div id="serviceInputContainer" class="hidden bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                     <h3 class="font-bold text-base text-slate-800 mb-1 flex items-center">
                         <i class="fa-solid fa-tags text-indigo-600 ml-2"></i> تسجيل خدمة جديدة (خاص بالأدمن)
@@ -338,7 +336,6 @@
 
             <!-- TAB 4: DOCUMENTS MODULE -->
             <section id="tab-documents" class="space-y-4 hidden">
-                <!-- FORM HIDDEN FOR REGULAR USERS -->
                 <div id="adminUploadSection" class="hidden bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 text-white shadow-md border border-slate-700">
                     <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
                         <h3 class="font-bold text-sm text-amber-400 flex items-center">
@@ -454,8 +451,8 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         let currentPin = "";
-        const USER_PIN = "1234";
-        const ADMIN_PIN = "9999"; // الرقم السري للدخول كـ أدمن
+        const USER_PIN = "1234";    // الرقم السري العادي (للمشاهدة فقط)
+        const ADMIN_PIN = "9999";   // الرقم السري للأدمن (للتحكم الكامل)
         let isAdmin = false;
         let activeDocFilter = "all";
 
@@ -505,7 +502,7 @@
                 updateAdminState();
                 initApp();
             } else {
-                document.getElementById('pinError').innerText = "الرقم السري غير صحيح! حاول مرة أخرى";
+                document.getElementById('pinError').innerText = "الرقم السري غير صحيح! حاول مرة أخرى (1234 أو 9999)";
                 clearPin();
             }
         }
@@ -523,7 +520,7 @@
                 alert('تم الخروج من وضع الأدمن والتحويل لوضع الاطلاع فقط.');
                 updateAdminState();
             } else {
-                const pass = prompt('الرجاء إدخال الرقم السري للأدمن:');
+                const pass = prompt('الرجاء إدخال الرقم السري للأدمن (9999):');
                 if (pass === ADMIN_PIN) {
                     isAdmin = true;
                     alert('مرحباً بك! تم تفعيل صلاحيات الأدمن (الإدخال والحذف).');
