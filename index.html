@@ -673,7 +673,6 @@
             uploadBtn.disabled = true;
 
             try {
-                // رفع الملف الحقيقي إلى Firebase Storage
                 const storageRef = window.ref(window.storage, 'documents/' + Date.now() + '_' + file.name);
                 await window.uploadBytes(storageRef, file);
                 const fileUrl = await window.getDownloadURL(storageRef);
@@ -740,13 +739,21 @@
                         </div>
                     </div>
                     <div class="flex items-center space-x-1 space-x-reverse">
-                        <a href="${d.fileUrl || '#'}" target="_blank" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg font-bold text-[11px] flex items-center">
+                        <button onclick="openDocument('${d.fileUrl}')" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 rounded-lg font-bold text-[11px] flex items-center">
                             <i class="fa-solid fa-eye ml-1"></i> عرض
-                        </a>
+                        </button>
                         ${isAdmin ? `<button onclick="deleteDocItem('${d.idDoc}')" class="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg"><i class="fa-solid fa-trash"></i></button>` : ''}
                     </div>
                 </div>
             `).join('');
+        }
+
+        function openDocument(url) {
+            if (!url || url === '#' || url.startsWith('document.')) {
+                alert('عذراً، هذا المستند قديم ولم يتم رفع ملفه الحقيقي. يرجى إعادة رفعه مرة أخرى.');
+                return;
+            }
+            window.open(url, '_blank');
         }
 
         async function deleteDocItem(idDoc) {
