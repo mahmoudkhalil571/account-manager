@@ -39,11 +39,7 @@
 
         // تفعيل التخزين المؤقت للعمل بدون إنترنت
         enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-            } else if (err.code == 'unimplemented') {
-                console.log('The current browser does not support all of the features required to enable persistence');
-            }
+            console.log('Persistence notice: ', err.code);
         });
 
         window.db = db;
@@ -327,7 +323,6 @@
                         <div>
                             <label class="block text-xs font-semibold text-slate-300 mb-1">رابط المستند من Google Drive *</label>
                             <input type="url" id="docDriveUrl" required placeholder="https://drive.google.com/..." class="w-full px-3 py-2 text-xs bg-slate-800 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-400 focus:outline-none" dir="ltr">
-                            <p class="text-[10px] text-sky-300 mt-1">تأكد من جعل مشاركة الملف عامة (أي شخص لديه الرابط)</p>
                         </div>
 
                         <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center">
@@ -377,8 +372,26 @@
 
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- JAVASCRIPT LOGIC & PWA SERVICE WORKER -->
     <script>
+        // تسجيل Service Worker لضمان العمل أوفلاين وتخزين الواجهة محلياً
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    self.addEventListener('install', (e) => { self.skipWaiting(); });
+                    self.addEventListener('activate', (e) => { e.waitUntil(clients.claim()); });
+                    self.addEventListener('fetch', (e) => {
+                        e.respondWith(
+                            fetch(e.request).catch(() => caches.match(e.request))
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'text/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration failed', err));
+            });
+        }
+
         const MASTER_PIN = "2106";
         let isAdmin = false;
         let activeDocFilter = "all";
@@ -471,7 +484,7 @@
                 renderDashboard();
                 renderRevenues();
             }, (error) => {
-                console.log("Offline mode: using cached revenues");
+                console.log("Offline mode active for revenues");
             });
 
             onSnapshot(collection(window.db, "services"), (snapshot) => {
@@ -479,14 +492,14 @@
                 renderDashboard();
                 renderServices();
             }, (error) => {
-                console.log("Offline mode: using cached services");
+                console.log("Offline mode active for services");
             });
 
             onSnapshot(collection(window.db, "documents"), (snapshot) => {
                 documents = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
                 renderDocuments();
             }, (error) => {
-                console.log("Offline mode: using cached documents");
+                console.log("Offline mode active for documents");
             });
         }
 
@@ -676,7 +689,6 @@
             const date = document.getElementById('docDate').value;
             let fileUrl = document.getElementById('docDriveUrl').value.trim();
 
-            // تحويل روابط درايف الداخلية لتعمل مباشرة دون أذونات
             if (fileUrl.includes('drive.google.com') && fileUrl.includes('/file/d/')) {
                 const fileIdMatch = fileUrl.match(/\/file\/d\/([^\/]+)/);
                 if (fileIdMatch && fileIdMatch[1]) {
