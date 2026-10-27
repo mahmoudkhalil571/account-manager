@@ -20,10 +20,10 @@
     <!-- Google Fonts Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Firebase SDKs -->
+    <!-- Firebase SDKs with Offline Persistence -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCcCnsBHn_Bf2Uq9fX1-tvssML1HEywuzQ",
@@ -37,7 +37,15 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // إتاحة الدوال للاستخدام العام في الصفحة
+        // تفعيل التخزين المؤقت للعمل بدون إنترنت
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+            } else if (err.code == 'unimplemented') {
+                console.log('The current browser does not support all of the features required to enable persistence');
+            }
+        });
+
         window.db = db;
         window.collection = collection;
         window.addDoc = addDoc;
@@ -319,7 +327,7 @@
                         <div>
                             <label class="block text-xs font-semibold text-slate-300 mb-1">رابط المستند من Google Drive *</label>
                             <input type="url" id="docDriveUrl" required placeholder="https://drive.google.com/..." class="w-full px-3 py-2 text-xs bg-slate-800 border border-slate-600 rounded-xl text-white focus:ring-2 focus:ring-amber-400 focus:outline-none" dir="ltr">
-                            <p class="text-[10px] text-sky-300 mt-1">انسخ رابط المشاركة العامة من Google Drive والصقه هنا</p>
+                            <p class="text-[10px] text-sky-300 mt-1">تأكد من جعل مشاركة الملف عامة (أي شخص لديه الرابط)</p>
                         </div>
 
                         <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center">
@@ -462,17 +470,23 @@
                 revenues = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
                 renderDashboard();
                 renderRevenues();
+            }, (error) => {
+                console.log("Offline mode: using cached revenues");
             });
 
             onSnapshot(collection(window.db, "services"), (snapshot) => {
                 services = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
                 renderDashboard();
                 renderServices();
+            }, (error) => {
+                console.log("Offline mode: using cached services");
             });
 
             onSnapshot(collection(window.db, "documents"), (snapshot) => {
                 documents = snapshot.docs.map(doc => ({ idDoc: doc.id, ...doc.data() }));
                 renderDocuments();
+            }, (error) => {
+                console.log("Offline mode: using cached documents");
             });
         }
 
@@ -534,7 +548,7 @@
                 switchTab('dashboard');
                 alert('تم حفظ الإيراد بنجاح وتحديثه لدى الجميع');
             } catch (err) {
-                alert('حدث خطأ أثناء الحفظ: ' + err.message);
+                alert('حدث خطأ أثناء الحفظ (تأكد من اتصال الإنترنت): ' + err.message);
             }
         }
 
@@ -660,7 +674,15 @@
             const title = document.getElementById('docTitle').value;
             const num = document.getElementById('docNum').value;
             const date = document.getElementById('docDate').value;
-            const fileUrl = document.getElementById('docDriveUrl').value;
+            let fileUrl = document.getElementById('docDriveUrl').value.trim();
+
+            // تحويل روابط درايف الداخلية لتعمل مباشرة دون أذونات
+            if (fileUrl.includes('drive.google.com') && fileUrl.includes('/file/d/')) {
+                const fileIdMatch = fileUrl.match(/\/file\/d\/([^\/]+)/);
+                if (fileIdMatch && fileIdMatch[1]) {
+                    fileUrl = `https://drive.google.com/uc?export=view&id=${fileIdMatch[1]}`;
+                }
+            }
 
             const newDoc = { id: Date.now(), type, title, num: num || 'غير محدد', date, fileUrl };
             
